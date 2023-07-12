@@ -17,18 +17,35 @@
     "commands": [
       {
         "command": "annotation.collapseBlock",
-        "title": "Collapse Block"
+        "title": "Collapse annotation block"
+      },
+      {
+        "command": "annotation.toggleAnnotations",
+        "title": "Toggle annotation block"
+      }
+    ],
+    "keybindings": [
+      {
+          "command": "annotation.toggleAnnotations",
+          "title": "Toggle annotation block",
+          "key": "alt+a",
+          "mac": "option+a",
+          "when": "editorTextFocus"
       }
     ],
     "configuration": {
       "type": "object",
-      "title": "Extension Name",
       "properties": {
-          "extension.autoRunCommand": {
+          "annotation.autoRunCommand": {
               "type": "boolean",
               "default": true,
               "description": "Specifies whether the command should be automatically run when a Ruby file is opened."
-          }
+          },
+          "annotation.annotationsVisible": {
+            "type": "boolean",
+            "default": true,
+            "description": "Specifies whether the annotations are visible or hidden."
+        }
       }
     }
   },
