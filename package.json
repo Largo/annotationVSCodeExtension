@@ -1,7 +1,11 @@
 {
-  "name": "annotateToggle",
+  "name": "annotatetoggle",
   "displayName": "annotateToggle",
   "description": "collapse annotateToggle comments",
+  "publisher": "largo",
+  "repository": {
+    "url": "https://github.com/Largo/annotationVSCodeExtension"
+  },
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.54.0"
