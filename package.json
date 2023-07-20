@@ -16,10 +16,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "annotation.collapseBlock",
-        "title": "Collapse annotation block"
-      },
-      {
         "command": "annotation.toggleAnnotations",
         "title": "Toggle annotation block"
       }
