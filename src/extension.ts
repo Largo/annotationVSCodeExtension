@@ -61,19 +61,27 @@ function setGlobalAnnotationsVisible(isAnnotationsVisible: boolean) {
 
 function isRangeFolded(range: vscode.Range): boolean {
     const visibleRanges = vscode.window.activeTextEditor?.visibleRanges;
-	let rangeIsFolded = false;
-    if (visibleRanges) {
+    if (!visibleRanges) {
+        return false;
+    }
+
+    for (let i = range.start.line + 1; i < range.end.line; i++) {
+        let lineIsVisible = false;
         for (const visibleRange of visibleRanges) {
-            if (range.start.line >= visibleRange.start.line && range.start.line <= visibleRange.end.line) {
-				if (visibleRange.start.line === visibleRange.end.line) {
-					rangeIsFolded = true; // Fully folded, not visible
-				}
+            if (i >= visibleRange.start.line && i <= visibleRange.end.line) {
+                lineIsVisible = true;
+                break;
             }
+        }
+        if (!lineIsVisible) {
+            return true; // If any line between the start line and the end line is not visible, the range is folded
         }
     }
 
-    return rangeIsFolded; 
+    return false; // If all lines between the start line and the end line are visible, the range is not folded
 }
+
+
 
 function toggleFolding(document: vscode.TextDocument, isAnnotationsVisible: boolean) {
 	const foldingRanges = getFoldingRanges(document);
@@ -81,21 +89,62 @@ function toggleFolding(document: vscode.TextDocument, isAnnotationsVisible: bool
         const startLine = foldingRanges[0].start;
         const endLine = foldingRanges[0].end;
 
-		const isRangeFoldedNow = isRangeFolded(foldingRangeToRange(foldingRanges[0]));
-		
-        if (!isAnnotationsVisible && !isRangeFoldedNow) {
-            vscode.commands.executeCommand('editor.fold', {
+		//const isRangeFoldedNow = isRangeFolded(foldingRangeToRange(foldingRanges[0]));
+		//console.log(isRangeFoldedNow);
+		//let hasToMoveTheCursor = (!isAnnotationsVisible && !isRangeFoldedNow || isAnnotationsVisible && isRangeFoldedNow);
+		let hasToMoveTheCursor = true;
+
+		if(hasToMoveTheCursor) {
+			const activeEditor = vscode.window.activeTextEditor;
+			if (activeEditor) {
+				const document = activeEditor.document;
+				const foldingRanges = getFoldingRanges(document);
+				if (foldingRanges[0]) {
+					const annotationsStartLine = foldingRanges[0].start; // Calculate the line number of the first line of the annotation block
+					const position = new vscode.Position(annotationsStartLine, 0);
+					activeEditor.selection = new vscode.Selection(position, position);
+				}
+			}
+		}
+
+        if (!isAnnotationsVisible) {
+            console.log("fold");
+			vscode.commands.executeCommand('editor.fold', {
                 startLineNumber: startLine,
                 endLineNumber: endLine,
                 levels: 1
             });
-        } else if (isAnnotationsVisible && isRangeFoldedNow) {
+        } else if (isAnnotationsVisible) {
+			console.log("unfold");
             vscode.commands.executeCommand('editor.unfold', {
                 startLineNumber: startLine,
                 endLineNumber: endLine,
             });
         }
     }
+}
+
+function updateAnnotationsVisibility() {
+	let isAnnotationsVisible = getGlobalAnnotationsVisible();
+	const activeEditor = vscode.window.activeTextEditor;
+	if (activeEditor) {
+		const document = activeEditor.document;
+		const foldingRanges = getFoldingRanges(document);
+		if (foldingRanges[0]) {
+			const annotationsStartLine = foldingRanges[0].start; // Calculate the line number of the first line of the annotation block
+			const position = new vscode.Position(annotationsStartLine, 0);
+			activeEditor.selection = new vscode.Selection(position, position);
+
+			toggleFolding(document, isAnnotationsVisible);
+		}
+	}
+}
+
+function toggleAnnotations() {
+	let isAnnotationsVisible = ! getGlobalAnnotationsVisible();
+	setGlobalAnnotationsVisible(isAnnotationsVisible);
+
+	updateAnnotationsVisibility();
 }
 
 // This method is called when your extension is activated
@@ -108,44 +157,26 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	const config = vscode.workspace.getConfiguration();
-    let isAnnotationsVisible = getGlobalAnnotationsVisible();
-
     // Command to toggle annotations visibility
-	const toggleAnnotationsCommand = vscode.commands.registerCommand('annotation.toggleAnnotations', () => {
-		isAnnotationsVisible = ! getGlobalAnnotationsVisible();
-		setGlobalAnnotationsVisible(isAnnotationsVisible);
-
-		const activeEditor = vscode.window.activeTextEditor;
-		if (activeEditor) {
-			const document = activeEditor.document;
-			const foldingRanges = getFoldingRanges(document);
-			if (foldingRanges[0]) {
-				const annotationsStartLine = foldingRanges[0].start; // Calculate the line number of the first line of the annotation block
-				const position = new vscode.Position(annotationsStartLine, 0);
-				activeEditor.selection = new vscode.Selection(position, position);
-
-				toggleFolding(document, isAnnotationsVisible);
-			}
-		}
-	});
+	const toggleAnnotationsCommand = vscode.commands.registerCommand('annotation.toggleAnnotations',toggleAnnotations);
 	
     context.subscriptions.push(toggleAnnotationsCommand);
+
+	vscode.window.onDidChangeActiveTextEditor((editor) => {
+		if(editor) {
+			const document = editor.document;
+			if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
+				updateAnnotationsVisibility();
+			}
+		}
+	 });
 
 	 // Get the value of the extension.autoRunCommand setting
 	 const autoRunCommand = vscode.workspace.getConfiguration().get<boolean>('annotation.autoRunCommand');
 
 	 if (autoRunCommand) {
 		 // Automatically run the command once when a Ruby file is opened
-		 vscode.window.onDidChangeActiveTextEditor((editor) => {
-			if(editor) {
-				const document = editor.document;
-				if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
-				   let isAnnotationsVisible = getGlobalAnnotationsVisible();
-				   toggleFolding(document, isAnnotationsVisible);
-				}
-			}
-		 });
+		
 	}
 }
 
