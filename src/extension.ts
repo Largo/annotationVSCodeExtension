@@ -62,7 +62,7 @@ function updateAnnotateTogglesVisibility() {
 			const foldingRanges = getFoldingRanges(document);
 			if (foldingRanges[0]) {
 				console.log("visible editor1 " + isAnnotateVisible +  " " + editor.document.fileName);
-				toggleFolding(editor, isAnnotateVisible, currentActiveEditor);
+				toggleFolding(editor, isAnnotateVisible);
 			}
 		});
 	}
@@ -75,6 +75,8 @@ function toggleAnnotate() {
 	updateAnnotateTogglesVisibility();
 }
 
+// ...
+
 function getFirstFoldingRange(document: vscode.TextDocument): vscode.FoldingRange | undefined {
     const foldingRanges = getFoldingRanges(document);
     return foldingRanges[0];
@@ -85,37 +87,42 @@ function setCursorPosition(editor: vscode.TextEditor, lineNumber: number) {
     editor.selection = new vscode.Selection(position, position);
 }
 
-function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLine: number, isAnnotateVisible: boolean) {
-    const command = isAnnotateVisible ? 'editor.unfold' : 'editor.fold';
-    const args = isAnnotateVisible ? { startLineNumber: startLine, endLineNumber: endLine } : { startLineNumber: startLine, endLineNumber: endLine, levels: 1 };
-    
-    vscode.commands.executeCommand(command, args);
+async function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLine: number, isAnnotateVisible: boolean) {
+	const command = isAnnotateVisible ? 'editor.unfold' : 'editor.fold';
+	try {
+        const args = isAnnotateVisible ? { startLineNumber: startLine, endLineNumber: endLine } : { startLineNumber: startLine, endLineNumber: endLine, levels: 1 };
+
+        await vscode.commands.executeCommand(command, args);
+    } catch (error) {
+        console.error(`Error executing ${command}:`, error);
+    }
 }
 
-function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: boolean) {
+function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: boolean): Thenable<void> {
     const foldingRange = getFirstFoldingRange(editor.document);
     if (foldingRange) {
         const startLine = foldingRange.start;
         const endLine = foldingRange.end;
 
         setCursorPosition(editor, startLine);
-        foldOrUnfold(editor, startLine, endLine, isAnnotateVisible);
+        return foldOrUnfold(editor, startLine, endLine, isAnnotateVisible);
     }
+    return Promise.resolve();
 }
 
-function toggleFolding(editor: vscode.TextEditor, isAnnotateVisible: boolean, currentActiveEditor: vscode.TextEditor | undefined) {
+async function toggleFolding(editor: vscode.TextEditor, isAnnotateVisible: boolean) {
+    let currentActiveEditor = vscode.window.activeTextEditor;
 
     globalCurrentlyAutomaticallyChangingFocus = true;
-    vscode.window.showTextDocument(editor.document, editor.viewColumn).then((editor) => {
-        if (currentActiveEditor) {
-            toggleFoldingForEditor(editor, isAnnotateVisible);
+    await vscode.window.showTextDocument(editor.document, editor.viewColumn);
+    
+    if (currentActiveEditor) {
+        await toggleFoldingForEditor(editor, isAnnotateVisible);
 
-            // When you're done, reactivate the previously active editor.
-            vscode.window.showTextDocument(currentActiveEditor.document).then((editor) => { 
-                globalCurrentlyAutomaticallyChangingFocus = false;
-            });
-        }
-    });
+        // When you're done, reactivate the previously active editor.
+        await vscode.window.showTextDocument(currentActiveEditor.document, currentActiveEditor.viewColumn);
+        globalCurrentlyAutomaticallyChangingFocus = false;
+    }
 }
 
 // This method is called when your extension is activated
