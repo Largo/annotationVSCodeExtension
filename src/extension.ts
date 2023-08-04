@@ -91,8 +91,12 @@ async function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLin
 	const command = isAnnotateVisible ? 'editor.unfold' : 'editor.fold';
 	try {
         const args = isAnnotateVisible ? { startLineNumber: startLine, endLineNumber: endLine } : { startLineNumber: startLine, endLineNumber: endLine, levels: 1 };
-
-        await vscode.commands.executeCommand(command, args);
+		console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
+		if (vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName) {
+        	await vscode.commands.executeCommand(command, args);
+		} else {
+			console.log("error: activeTextEditor mismatch");
+		}
     } catch (error) {
         console.error(`Error executing ${command}:`, error);
     }
@@ -106,22 +110,24 @@ function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: bo
 
         setCursorPosition(editor, startLine);
         return foldOrUnfold(editor, startLine, endLine, isAnnotateVisible);
-    }
+    } else {
+		console.log("no folding range");
+	}
     return Promise.resolve();
 }
 
 async function toggleFolding(editor: vscode.TextEditor, isAnnotateVisible: boolean) {
     let currentActiveEditor = vscode.window.activeTextEditor;
 
-    globalCurrentlyAutomaticallyChangingFocus = true;
+    //globalCurrentlyAutomaticallyChangingFocus = true;
     await vscode.window.showTextDocument(editor.document, editor.viewColumn);
     
     if (currentActiveEditor) {
-        await toggleFoldingForEditor(editor, isAnnotateVisible);
+        //await toggleFoldingForEditor(editor, isAnnotateVisible);
 
         // When you're done, reactivate the previously active editor.
         await vscode.window.showTextDocument(currentActiveEditor.document, currentActiveEditor.viewColumn);
-        globalCurrentlyAutomaticallyChangingFocus = false;
+        //globalCurrentlyAutomaticallyChangingFocus = false;
     }
 }
 
@@ -146,7 +152,9 @@ export function activate(context: vscode.ExtensionContext) {
 		if(globalCurrentlyAutomaticallyChangingFocus === false && editor) {
 			const document = editor.document;
 			if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
-				updateAnnotateTogglesVisibility();
+				let isAnnotateVisible = getGlobalAnnotateVisible();
+				toggleFoldingForEditor(editor, isAnnotateVisible);
+				//updateAnnotateTogglesVisibility();
 			}
 		}
 	 });
@@ -156,6 +164,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	 if (autoRunCommand) {
 		 // Automatically run the command once when a Ruby file is opened
+		 console.log("autorun");
 		 updateAnnotateTogglesVisibility();
 	}
 }
