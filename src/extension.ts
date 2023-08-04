@@ -88,15 +88,19 @@ function setCursorPosition(editor: vscode.TextEditor, lineNumber: number) {
 }
 
 async function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLine: number, isAnnotateVisible: boolean) {
-	const command = isAnnotateVisible ? 'editor.unfold' : 'editor.fold';
-	try {
-        const args = isAnnotateVisible ? { startLineNumber: startLine, endLineNumber: endLine } : { startLineNumber: startLine, endLineNumber: endLine, levels: 1 };
-		console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
-		if (vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName) {
-        	await vscode.commands.executeCommand(command, args);
-		} else {
-			console.log("error: activeTextEditor mismatch");
-		}
+    const command = isAnnotateVisible ? 'editor.unfold' : 'editor.fold';
+    try {
+        const args = {
+            levels: 1, // Number of levels to fold/unfold. Modify this as per requirements
+            direction: 'up', // Change this as per requirements
+            selectionLines: [startLine, endLine] // Apply the fold/unfold action to the start line
+        };
+        console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
+        if (vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName) {
+            await vscode.commands.executeCommand(command, args);
+        } else {
+            console.log("error: activeTextEditor mismatch");
+        }
     } catch (error) {
         console.error(`Error executing ${command}:`, error);
     }
@@ -108,7 +112,7 @@ function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: bo
         const startLine = foldingRange.start;
         const endLine = foldingRange.end;
 
-        setCursorPosition(editor, startLine);
+        //setCursorPosition(editor, startLine);
         return foldOrUnfold(editor, startLine, endLine, isAnnotateVisible);
     } else {
 		console.log("no folding range");
