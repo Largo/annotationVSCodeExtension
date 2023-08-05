@@ -1,10 +1,6 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import { start } from 'repl';
 import * as vscode from 'vscode';
 
 let globalAnnotateVisible : boolean;
-let globalCurrentlyAutomaticallyChangingFocus : boolean = false; // Used to disable events when automatically switching focus
 
 export function getFoldingRanges(document: vscode.TextDocument): vscode.FoldingRange[] {
     const foldingRanges: vscode.FoldingRange[] = [];
@@ -35,7 +31,7 @@ export function getFoldingRanges(document: vscode.TextDocument): vscode.FoldingR
 function getGlobalAnnotateVisibleFromConfig(): boolean {
 	const config = vscode.workspace.getConfiguration();
     let isAnnotateVisible = config.get<boolean>('annotateToggle.annotateVisible');
-
+	
 	if (isAnnotateVisible === undefined) {
 		isAnnotateVisible = false; // Set default value
 		setGlobalAnnotateVisible(isAnnotateVisible);
@@ -60,13 +56,11 @@ async function updateAnnotateTogglesVisibility() {
 	  const document = editor.document;
 	  const foldingRanges = getFoldingRanges(document);
 	  if (foldingRanges[0]) {
-		console.log("visible editor1 " + isAnnotateVisible + " " + editor.document.fileName);
 		await toggleFolding(editor, isAnnotateVisible);
 	  }
 	}
 }
   
-
 async function toggleAnnotate() {
 	let isAnnotateVisible = ! getGlobalAnnotateVisible();
 	await setGlobalAnnotateVisible(isAnnotateVisible);
@@ -89,10 +83,10 @@ async function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLin
     try {
         const args = {
             levels: 1, // Number of levels to fold/unfold. Modify this as per requirements
-            direction: 'up', // Change this as per requirements
+            direction: 'down', // Change this as per requirements
             selectionLines: [startLine, endLine] // Apply the fold/unfold action to the start line
         };
-        console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
+		console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
         if (vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName) {
             return await vscode.commands.executeCommand(command, args);
         } else {
@@ -153,12 +147,11 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(toggleAnnotateCommand);
 
 	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-		if(globalCurrentlyAutomaticallyChangingFocus === false && editor) {
+		if(editor) {
 			const document = editor.document;
 			if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
 				let isAnnotateVisible = getGlobalAnnotateVisible();
 				await toggleFoldingForEditor(editor, isAnnotateVisible);
-				//updateAnnotateTogglesVisibility();
 			}
 		}
 	 });
@@ -166,16 +159,11 @@ export function activate(context: vscode.ExtensionContext) {
 	 // Get the value of the extension.autoRunCommand setting
 	 const autoRunCommand = vscode.workspace.getConfiguration().get<boolean>('annotateToggle.autoRunCommand');
 
-	 if (autoRunCommand) {
+	 if (autoRunCommand || autoRunCommand === undefined) {
 		 // Automatically run the command once when a Ruby file is opened
-		 console.log("autorun");
 		 updateAnnotateTogglesVisibility();
 	}
 }
 
 // This method is called when your extension is deactivated
 export function deactivate() {}
-
-
-
-////// check if the active ditor is being switched while the command is sent
