@@ -47,35 +47,32 @@ function getGlobalAnnotateVisible(): boolean {
 	return globalAnnotateVisible;
 }
 
-function setGlobalAnnotateVisible(isAnnotateVisible: boolean) {
+async function setGlobalAnnotateVisible(isAnnotateVisible: boolean) {
 	globalAnnotateVisible = isAnnotateVisible;
 	const config = vscode.workspace.getConfiguration();
-	config.update('annotateToggle.annotateVisible', isAnnotateVisible, vscode.ConfigurationTarget.Workspace);
+	return await config.update('annotateToggle.annotateVisible', isAnnotateVisible, vscode.ConfigurationTarget.Workspace);
 }
 
-function updateAnnotateTogglesVisibility() {
+async function updateAnnotateTogglesVisibility() {
 	let isAnnotateVisible = getGlobalAnnotateVisible();
-	let currentActiveEditor = vscode.window.activeTextEditor;
-	if(currentActiveEditor) {
-		vscode.window.visibleTextEditors.forEach((editor) => {
-			const document = editor.document;
-			const foldingRanges = getFoldingRanges(document);
-			if (foldingRanges[0]) {
-				console.log("visible editor1 " + isAnnotateVisible +  " " + editor.document.fileName);
-				toggleFolding(editor, isAnnotateVisible);
-			}
-		});
+  
+	for (const editor of vscode.window.visibleTextEditors) {
+	  const document = editor.document;
+	  const foldingRanges = getFoldingRanges(document);
+	  if (foldingRanges[0]) {
+		console.log("visible editor1 " + isAnnotateVisible + " " + editor.document.fileName);
+		await toggleFolding(editor, isAnnotateVisible);
+	  }
 	}
 }
+  
 
-function toggleAnnotate() {
+async function toggleAnnotate() {
 	let isAnnotateVisible = ! getGlobalAnnotateVisible();
-	setGlobalAnnotateVisible(isAnnotateVisible);
+	await setGlobalAnnotateVisible(isAnnotateVisible);
 
-	updateAnnotateTogglesVisibility();
+	return await updateAnnotateTogglesVisibility();
 }
-
-// ...
 
 function getFirstFoldingRange(document: vscode.TextDocument): vscode.FoldingRange | undefined {
     const foldingRanges = getFoldingRanges(document);
@@ -97,23 +94,26 @@ async function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLin
         };
         console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
         if (vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName) {
-            await vscode.commands.executeCommand(command, args);
+            return await vscode.commands.executeCommand(command, args);
         } else {
             console.log("error: activeTextEditor mismatch");
         }
     } catch (error) {
         console.error(`Error executing ${command}:`, error);
+	
     }
+	
+    return Promise.resolve();
 }
 
-function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: boolean): Thenable<void> {
+async function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: boolean): Promise<unknown> {
     const foldingRange = getFirstFoldingRange(editor.document);
     if (foldingRange) {
         const startLine = foldingRange.start;
         const endLine = foldingRange.end;
 
-        //setCursorPosition(editor, startLine);
-        return foldOrUnfold(editor, startLine, endLine, isAnnotateVisible);
+        setCursorPosition(editor, startLine);
+        return await foldOrUnfold(editor, startLine, endLine, isAnnotateVisible);
     } else {
 		console.log("no folding range");
 	}
@@ -121,18 +121,18 @@ function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: bo
 }
 
 async function toggleFolding(editor: vscode.TextEditor, isAnnotateVisible: boolean) {
-    let currentActiveEditor = vscode.window.activeTextEditor;
+	let currentActiveEditor = vscode.window.activeTextEditor;
 
-    //globalCurrentlyAutomaticallyChangingFocus = true;
-    await vscode.window.showTextDocument(editor.document, editor.viewColumn);
-    
-    if (currentActiveEditor) {
-        //await toggleFoldingForEditor(editor, isAnnotateVisible);
-
-        // When you're done, reactivate the previously active editor.
-        await vscode.window.showTextDocument(currentActiveEditor.document, currentActiveEditor.viewColumn);
-        //globalCurrentlyAutomaticallyChangingFocus = false;
-    }
+    return await vscode.window.showTextDocument(editor.document, editor.viewColumn).then(async () => {
+			return await toggleFoldingForEditor(editor, isAnnotateVisible).then(async () => {
+				// When you're done, reactivate the previously active editor.
+				if (currentActiveEditor) {
+					return await vscode.window.showTextDocument(currentActiveEditor.document, currentActiveEditor.viewColumn);
+				} else {
+					return Promise.resolve();
+				}
+			});
+	});
 }
 
 // This method is called when your extension is activated
@@ -152,12 +152,12 @@ export function activate(context: vscode.ExtensionContext) {
 	
     context.subscriptions.push(toggleAnnotateCommand);
 
-	vscode.window.onDidChangeActiveTextEditor((editor) => {
+	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 		if(globalCurrentlyAutomaticallyChangingFocus === false && editor) {
 			const document = editor.document;
 			if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
 				let isAnnotateVisible = getGlobalAnnotateVisible();
-				toggleFoldingForEditor(editor, isAnnotateVisible);
+				await toggleFoldingForEditor(editor, isAnnotateVisible);
 				//updateAnnotateTogglesVisibility();
 			}
 		}
@@ -175,3 +175,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated
 export function deactivate() {}
+
+
+
+////// check if the active ditor is being switched while the command is sent
