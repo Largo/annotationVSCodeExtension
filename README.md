@@ -24,6 +24,10 @@ This extension contributes the following settings:
 ## Release Notes
 
 
+### 0.0.2
+Allowing the simultaneous folding of multiple windows. Also make sure the folding works correctly on
+startup.
+
 ### 0.0.1
 
 Initial release of the extension
