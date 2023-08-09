@@ -53,11 +53,13 @@ async function updateAnnotateTogglesVisibility() {
 	let isAnnotateVisible = getGlobalAnnotateVisible();
   
 	for (const editor of vscode.window.visibleTextEditors) {
-	  const document = editor.document;
-	  const foldingRanges = getFoldingRanges(document);
-	  if (foldingRanges[0]) {
-		await toggleFolding(editor, isAnnotateVisible);
-	  }
+		const document = editor.document;
+	  	if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
+			const foldingRanges = getFoldingRanges(document);
+			if (foldingRanges[0]) {
+				await toggleFolding(editor, isAnnotateVisible);
+			}
+		}
 	}
 }
   
@@ -131,7 +133,7 @@ async function toggleFolding(editor: vscode.TextEditor, isAnnotateVisible: boole
 
 // This method is called when your extension is activated
 // Your extension is activated the first time a ruby document is opened or if the command is called.
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 	globalAnnotateVisible = getGlobalAnnotateVisibleFromConfig();
 
 	vscode.languages.registerFoldingRangeProvider('ruby', {
@@ -146,6 +148,8 @@ export function activate(context: vscode.ExtensionContext) {
 	
     context.subscriptions.push(toggleAnnotateCommand);
 
+	await updateAnnotateTogglesVisibility();
+
 	vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 		if(editor) {
 			const document = editor.document;
@@ -154,15 +158,7 @@ export function activate(context: vscode.ExtensionContext) {
 				await toggleFoldingForEditor(editor, isAnnotateVisible);
 			}
 		}
-	 });
-
-	 // Get the value of the extension.autoRunCommand setting
-	 const autoRunCommand = vscode.workspace.getConfiguration().get<boolean>('annotateToggle.autoRunCommand');
-
-	 if (autoRunCommand || autoRunCommand === undefined) {
-		 // Automatically run the command once when a Ruby file is opened
-		 updateAnnotateTogglesVisibility();
-	}
+	});
 }
 
 // This method is called when your extension is deactivated
