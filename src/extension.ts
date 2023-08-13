@@ -49,10 +49,43 @@ async function setGlobalAnnotateVisible(isAnnotateVisible: boolean) {
 	return await config.update('annotateToggle.annotateVisible', isAnnotateVisible, vscode.ConfigurationTarget.Workspace);
 }
 
+ // Hack to get all open tabs.  Taken from:
+    //  https://github.com/eamodio/vscode-restore-editors/blob/master/src/documentManager.ts#L43
+ async function getOpenEditors() {
+        try {
+            const active = vscode.window.activeTextEditor;
+
+            const editorTracker = new ActiveEditorTracker();
+
+            let editor = active;
+            const openEditors: vscode.TextEditor[] = [];
+            do {
+                openEditors.push(editor);
+
+                vscode.commands.executeCommand('workbench.action.nextEditor');
+                editor = await editorTracker.wait();
+                console.log(editor);
+            } while (active && active.document.fileName !== editor.document.fileName);
+            editorTracker.dispose();
+
+            return openEditors;
+        }
+        catch (ex) {
+        }
+    }
+
 async function updateAnnotateTogglesVisibility() {
 	let isAnnotateVisible = getGlobalAnnotateVisible();
-  
-	for (const editor of vscode.window.visibleTextEditors) {
+
+	for (const tabGroup of vscode.window.tabGroups.all) {
+		for (const tab of tabGroup.tabs) {
+			if (tab.input instanceof vscode.TabInputText) {
+				console.log(tab.input);
+			}
+		}
+	}
+	
+  	for (const editor of vscode.window.visibleTextEditors) {
 		const document = editor.document;
 	  	if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
 			const foldingRanges = getFoldingRanges(document);
