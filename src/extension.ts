@@ -63,24 +63,39 @@ async function updateAnnotateTogglesVisibility() {
 		for (const tab of tabGroup.tabs) {
 			if(tab.input instanceof vscode.TabInputText) {
 				const uri = tab.input.uri;
-                const editor : vscode.TextEditor | undefined  = undefined;
-                const document : vscode.TextDocument | undefined = undefined;
-                
-               // TODO: go thtough currentlyVisibleEditors and if the viewColumn and the document.fileName is the same, then use the document and editor from there otherwise open a new document "document = await vscode.workspace.openTextDocument(uri)" and "editor = await vscode.window.showTextDocument(document, tab.group.viewColumn)"
+                let editor: vscode.TextEditor | undefined = undefined;
+                let document: vscode.TextDocument | undefined = undefined;
 
-				// const document = await vscode.workspace.openTextDocument(uri);
+                // Iterate through currentlyVisibleEditors and if the viewColumn and the document.fileName is the same, use the document and editor from there
+                for (const visibleEditor of currentlyVisibleEditors) {
+                    if (visibleEditor.viewColumn === tab.group.viewColumn && visibleEditor.document.fileName === uri.fsPath) {
+                        editor = visibleEditor;
+                        document = visibleEditor.document;
+                        break;
+                    }
+                }
+
+                // Otherwise, open a new document
+                if (!editor || !document) {
+                    document = await vscode.workspace.openTextDocument(uri);
+                    editor = await vscode.window.showTextDocument(document, tab.group.viewColumn);
+                }
+
                 if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
-    				// const editor = await vscode.window.showTextDocument(document, tab.group.viewColumn);		
-					const foldingRanges = getFoldingRanges(document);
+    				const foldingRanges = getFoldingRanges(document);
 					if (foldingRanges[0]) {
-                            await vscode.window.showTextDocument(editor.document, editor.viewColumn).then(async () => {
-                                    return await toggleFoldingForEditor(editor, isAnnotateVisible);
-                            });
-                        }
-					}
-				}		
+                        await vscode.window.showTextDocument(editor.document, editor.viewColumn).then(async () => {
+                            if(editor) {
+                                return await toggleFoldingForEditor(editor, isAnnotateVisible);
+                            } else {
+                                return Promise.resolve();
+                            }
+                        });
+                    }
+				}
 			}
 		}
+	}
 
     // When done, reactivate the previously active editor.
     if (currentActiveEditor) {
