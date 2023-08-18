@@ -56,11 +56,16 @@ async function setGlobalAnnotateVisible(isAnnotateVisible: boolean) {
 
 async function updateAnnotateTogglesVisibility() {
 	let isAnnotateVisible = getGlobalAnnotateVisible();
-    let currentActiveEditor = vscode.window.activeTextEditor;
-    let currentlyVisibleEditors = vscode.window.visibleTextEditors;
+    let activeEditorBeforeSwitch = vscode.window.activeTextEditor;
 
 	for(const tabGroup of vscode.window.tabGroups.all) {
-		for (const tab of tabGroup.tabs) {
+        let currentlyVisibleEditors = vscode.window.visibleTextEditors;
+        let activeTabBeforeSwitch : vscode.Tab | undefined = tabGroup.activeTab;
+
+        // Reorder the tabs to start with the active tab
+        const reorderedTabs = activeTabBeforeSwitch ? [activeTabBeforeSwitch, ...tabGroup.tabs.filter(tab => tab !== activeTabBeforeSwitch)] : tabGroup.tabs;
+
+		for (const tab of reorderedTabs) {
 			if(tab.input instanceof vscode.TabInputText) {
 				const uri = tab.input.uri;
                 let editor: vscode.TextEditor | undefined = undefined;
@@ -78,33 +83,44 @@ async function updateAnnotateTogglesVisibility() {
                 // Otherwise, open a new document
                 if (!editor || !document) {
                     document = await vscode.workspace.openTextDocument(uri);
-                    editor = await vscode.window.showTextDocument(document, tab.group.viewColumn);
+                    editor = await vscode.window.showTextDocument(document, tab.group.viewColumn, false);
                 }
 
                 if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
     				const foldingRanges = getFoldingRanges(document);
 					if (foldingRanges[0]) {
                         await vscode.window.showTextDocument(editor.document, editor.viewColumn).then(async () => {
-                            if(editor) {
+                            if (editor) {
                                 return await toggleFoldingForEditor(editor, isAnnotateVisible);
-                            } else {
-                                return Promise.resolve();
                             }
                         });
                     }
 				}
 			}
-		}
-	}
 
+		}
+
+        let editor: vscode.TextEditor | undefined = undefined;
+        let document: vscode.TextDocument | undefined = undefined;
+
+        // Now re-activate the tab that was active before, but don't set the focus
+        for (const visibleEditor of currentlyVisibleEditors) {
+            if(activeTabBeforeSwitch?.input instanceof vscode.TabInputText) {
+                if (visibleEditor.viewColumn === tabGroup.viewColumn && visibleEditor.document.fileName === activeTabBeforeSwitch.input.uri.fsPath) {
+                    await vscode.window.showTextDocument(visibleEditor.document, tabGroup.viewColumn, false);
+                    break;
+                }
+            }
+        }
+	}
+    
     // When done, reactivate the previously active editor.
-    if (currentActiveEditor) {
-        return await vscode.window.showTextDocument(currentActiveEditor.document, currentActiveEditor.viewColumn);
-    } else {
-        return Promise.resolve();
+    if (activeEditorBeforeSwitch && activeEditorBeforeSwitch !== vscode.window.activeTextEditor) {
+        return await vscode.window.showTextDocument(activeEditorBeforeSwitch.document, activeEditorBeforeSwitch.viewColumn);
     }
+    return Promise.resolve();
 }
-  
+
 async function toggleAnnotate() {
 	let isAnnotateVisible = ! getGlobalAnnotateVisible();
 	await setGlobalAnnotateVisible(isAnnotateVisible);
@@ -130,7 +146,7 @@ async function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLin
             direction: 'down', // Change this as per requirements
             selectionLines: [startLine, endLine] // Apply the fold/unfold action to the start line
         };
-		//console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
+		console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
         if (vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName) {
             return await vscode.commands.executeCommand(command, args);
         } else {
