@@ -51,16 +51,33 @@ async function setGlobalAnnotateVisible(isAnnotateVisible: boolean) {
 
 async function updateAnnotateTogglesVisibility() {
 	let isAnnotateVisible = getGlobalAnnotateVisible();
-  
-	for (const editor of vscode.window.visibleTextEditors) {
-		const document = editor.document;
-	  	if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
-			const foldingRanges = getFoldingRanges(document);
-			if (foldingRanges[0]) {
-				await toggleFolding(editor, isAnnotateVisible);
+     
+	for(const tabGroup of vscode.window.tabGroups.all) {
+		for (const tab of tabGroup.tabs) {
+			if(tab.input instanceof vscode.TabInputText) {
+				const uri = tab.input.uri;
+				const document = await vscode.workspace.openTextDocument(uri);
+				const editor = await vscode.window.showTextDocument(document, tab.group.viewColumn);
+			
+				if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
+					const foldingRanges = getFoldingRanges(document);
+					if (foldingRanges[0]) {
+						await toggleFolding(editor, isAnnotateVisible);
+					}
+				}		
 			}
 		}
 	}
+
+	// for (const editor of vscode.window.visibleTextEditors) {
+	// 	const document = editor.document;
+	//   	if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
+	// 		const foldingRanges = getFoldingRanges(document);
+	// 		if (foldingRanges[0]) {
+	// 			await toggleFolding(editor, isAnnotateVisible);
+	// 		}
+	// 	}
+	// }
 }
   
 async function toggleAnnotate() {
