@@ -46,11 +46,7 @@ function getGlobalAnnotateVisible(): boolean {
 async function setGlobalAnnotateVisible(isAnnotateVisible: boolean) {
 	globalAnnotateVisible = isAnnotateVisible;
 	const config = vscode.workspace.getConfiguration();
-    let target = vscode.ConfigurationTarget.Workspace;
-    if (vscode.workspace.workspaceFolders === undefined) {
-        target = vscode.ConfigurationTarget.Global;
-    }
-
+    let target = vscode.ConfigurationTarget.Global;
 	return await config.update('annotateToggle.annotateVisible', isAnnotateVisible, target);
 }
 
@@ -63,7 +59,8 @@ async function updateAnnotateTogglesVisibility() {
         let activeTabBeforeSwitch : vscode.Tab | undefined = tabGroup.activeTab;
 
         // Reorder the tabs to start with the active tab
-        const reorderedTabs = activeTabBeforeSwitch ? [activeTabBeforeSwitch, ...tabGroup.tabs.filter(tab => tab !== activeTabBeforeSwitch)] : tabGroup.tabs;
+        let reorderedTabs = activeTabBeforeSwitch ? [activeTabBeforeSwitch, ...tabGroup.tabs.filter(tab => tab !== activeTabBeforeSwitch)] : tabGroup.tabs;
+        reorderedTabs = reorderedTabs.filter(tab => tab.isActive === true); // only work on active tabs
 
 		for (const tab of reorderedTabs) {
 			if(tab.input instanceof vscode.TabInputText) {
@@ -97,7 +94,6 @@ async function updateAnnotateTogglesVisibility() {
                     }
 				}
 			}
-
 		}
 
         let editor: vscode.TextEditor | undefined = undefined;
