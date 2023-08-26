@@ -88,7 +88,7 @@ async function updateAnnotateTogglesVisibility() {
 					if (foldingRanges[0]) {
                         await vscode.window.showTextDocument(editor.document, editor.viewColumn).then(async () => {
                             if (editor) {
-                                return await toggleFoldingForEditor(editor, isAnnotateVisible);
+                                return await toggleFoldingForEditor(editor, isAnnotateVisible, true);
                             }
                         });
                     }
@@ -142,7 +142,7 @@ async function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLin
             direction: 'down', // Change this as per requirements
             selectionLines: [startLine, endLine] // Apply the fold/unfold action to the start line
         };
-		console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
+		//console.log(command, vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName, editor.document.fileName, args, editor.selection.start, editor.selection.end, editor.selection.anchor.line);
         if (vscode.window.activeTextEditor?.document?.fileName === editor.document.fileName) {
             return await vscode.commands.executeCommand(command, args);
         } else {
@@ -156,13 +156,15 @@ async function foldOrUnfold(editor: vscode.TextEditor, startLine: number, endLin
     return Promise.resolve();
 }
 
-async function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: boolean): Promise<unknown> {
+async function toggleFoldingForEditor(editor: vscode.TextEditor, isAnnotateVisible: boolean, jumpCursor: boolean): Promise<unknown> {
     const foldingRange = getFirstFoldingRange(editor.document);
     if (foldingRange) {
         const startLine = foldingRange.start;
         const endLine = foldingRange.end;
 
-        setCursorPosition(editor, startLine);
+        if(jumpCursor) {
+            setCursorPosition(editor, startLine);
+        }
         return await foldOrUnfold(editor, startLine, endLine, isAnnotateVisible);
     } else {
 		console.log("no folding range");
@@ -194,7 +196,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			const document = editor.document;
 			if (document.languageId === 'ruby' || document.fileName.endsWith(".rb.git")) {
 				let isAnnotateVisible = getGlobalAnnotateVisible();
-				await toggleFoldingForEditor(editor, isAnnotateVisible);
+				await toggleFoldingForEditor(editor, isAnnotateVisible, false);
 			}
 		}
 	});
